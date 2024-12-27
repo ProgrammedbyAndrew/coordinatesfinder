@@ -4,14 +4,13 @@
   <meta charset="UTF-8" />
   <!-- Ensures mobile devices render content at device width -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coordinate Recorder (Mobile-Friendly)</title>
+  <title>Coordinate Recorder (No Time)</title>
   <style>
-    /* Overall, we use larger fonts and more spacing for mobile */
     body {
       font-family: Arial, sans-serif;
       margin: 16px;
       padding: 0;
-      font-size: 1.2rem;  /* Larger base font */
+      font-size: 1.2rem;  /* Larger base font for mobile */
       background-color: #f9f9f9;
     }
 
@@ -25,7 +24,6 @@
       margin-bottom: 16px;
       text-align: center;
     }
-
     .coords div {
       margin: 8px 0;
       font-size: 1.4rem;
@@ -51,10 +49,11 @@
       cursor: pointer;
       width: 100%;
       max-width: 300px;
-      margin: 0 auto; /* center the button block in the screen */
+      margin: 0 auto; /* Center the button block */
       color: #fff;
     }
 
+    /* Different button colors for clarity */
     #refreshBtn {
       background-color: #28a745;
     }
@@ -72,7 +71,6 @@
       text-align: center;
       margin-bottom: 12px;
     }
-
     .row input {
       padding: 12px;
       font-size: 1rem;
@@ -88,7 +86,6 @@
       text-align: center;
       max-width: 400px;
     }
-
     .status {
       color: green;
     }
@@ -112,7 +109,7 @@
   </style>
 </head>
 <body>
-  <h1>Coordinate Recorder</h1>
+  <h1>Coordinate Recorder (No Time)</h1>
 
   <!-- Current position display -->
   <div class="coords">
@@ -149,6 +146,7 @@
     let currentLon = null;
 
     // In-memory store of recorded points
+    // Each item is { name: string, latitude: number, longitude: number }
     let recordedPoints = [];
 
     const latEl         = document.getElementById('lat');
@@ -162,7 +160,7 @@
     const downloadBtn   = document.getElementById('downloadBtn');
     const loadBtn       = document.getElementById('loadBtn');
 
-    // --- Refresh Coordinates on demand ---
+    // --- 1) Refresh Coordinates on demand ---
     refreshBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (!('geolocation' in navigator)) {
@@ -184,7 +182,7 @@
       );
     });
 
-    // --- Record the displayed coords + name ---
+    // --- 2) Record the displayed coords + name (no timestamp) ---
     recordBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (currentLat === null || currentLon === null) {
@@ -201,12 +199,11 @@
       const entry = {
         name: nameVal,
         latitude: currentLat,
-        longitude: currentLon,
-        timestamp: new Date().toISOString()
+        longitude: currentLon
       };
       recordedPoints.push(entry);
 
-      // Save to localStorage
+      // Save to localStorage (stringify the entire array)
       localStorage.setItem('savedCoordinates', JSON.stringify(recordedPoints));
 
       // Confirmation
@@ -214,16 +211,18 @@
       updateDataTextArea();
     });
 
-    // --- Download recordedPoints as .txt ---
+    // --- 3) Download recordedPoints as .txt (no timestamp) ---
     downloadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (recordedPoints.length === 0) {
         messageEl.innerHTML = '<p class="error">No data to download.</p>';
         return;
       }
-      let fileContent = "Location Name,Latitude,Longitude,Timestamp\n";
+      // Convert array to CSV-like text
+      // We'll do "Location Name,Latitude,Longitude"
+      let fileContent = "Location Name,Latitude,Longitude\n";
       recordedPoints.forEach(pt => {
-        fileContent += `"${pt.name}",${pt.latitude},${pt.longitude},${pt.timestamp}\n`;
+        fileContent += `"${pt.name}",${pt.latitude},${pt.longitude}\n`;
       });
 
       const blob = new Blob([fileContent], { type: 'text/plain' });
@@ -239,7 +238,7 @@
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     });
 
-    // --- Load from localStorage ---
+    // --- 4) Load from localStorage (if previously saved) ---
     loadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       const saved = localStorage.getItem('savedCoordinates');
@@ -249,17 +248,18 @@
       }
       try {
         recordedPoints = JSON.parse(saved) || [];
-        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} records.</p>`;
+        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} record(s).</p>`;
         updateDataTextArea();
       } catch (err) {
         messageEl.innerHTML = '<p class="error">Error parsing saved data.</p>';
       }
     });
 
+    // Show the recordedPoints in the text area
     function updateDataTextArea() {
       let text = '';
       recordedPoints.forEach((pt, i) => {
-        text += `[${i + 1}] "${pt.name}" => (${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)}) at ${pt.timestamp}\n`;
+        text += `[${i + 1}] "${pt.name}" => (${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)})\n`;
       });
       dataTextArea.value = text;
     }
