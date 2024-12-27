@@ -2,68 +2,117 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Coordinate Recorder (Manual Refresh)</title>
+  <!-- Ensures mobile devices render content at device width -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinate Recorder (Mobile-Friendly)</title>
   <style>
+    /* Overall, we use larger fonts and more spacing for mobile */
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 16px;
+      padding: 0;
+      font-size: 1.2rem;  /* Larger base font */
+      background-color: #f9f9f9;
     }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+
     .coords {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
+      margin-bottom: 16px;
+      text-align: center;
     }
+
+    .coords div {
+      margin: 8px 0;
+      font-size: 1.4rem;
+    }
+
     .label {
       font-weight: bold;
+      margin-right: 6px;
     }
-    .row {
-      margin: 10px 0;
+
+    .buttons-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
     }
-    .row input {
-      padding: 6px;
-      font-size: 1rem;
-      width: 200px;
-    }
+
     button {
-      padding: 8px 14px;
-      font-size: 1rem;
+      padding: 16px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
-      margin-right: 10px;
-    }
-    .status {
-      margin-top: 1rem;
-      color: green;
-    }
-    .error {
-      margin-top: 1rem;
-      color: red;
-    }
-    hr {
-      margin: 20px 0;
-    }
-    #loadBtn {
-      background-color: #6c757d;
+      width: 100%;
+      max-width: 300px;
+      margin: 0 auto; /* center the button block in the screen */
       color: #fff;
     }
+
     #refreshBtn {
       background-color: #28a745;
-      color: #fff;
     }
     #recordBtn {
       background-color: #007bff;
-      color: #fff;
     }
     #downloadBtn {
       background-color: #17a2b8;
-      color: #fff;
     }
+    #loadBtn {
+      background-color: #6c757d;
+    }
+
+    .row {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .row input {
+      padding: 12px;
+      font-size: 1rem;
+      width: 80%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    #message {
+      font-size: 1rem;
+      margin: 12px auto 12px auto;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .status {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+
     #dataTextArea {
-      width: 100%;
-      height: 150px;
+      display: block;
+      width: 90%;
+      max-width: 400px;
+      margin: 0 auto 16px auto;
+      height: 200px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 1rem;
+      line-height: 1.4;
+      resize: vertical;
     }
   </style>
 </head>
 <body>
-  <h1>Coordinate Recorder (Manual Refresh)</h1>
+  <h1>Coordinate Recorder</h1>
 
   <!-- Current position display -->
   <div class="coords">
@@ -77,8 +126,8 @@
     </div>
   </div>
 
-  <!-- Buttons to get a fix, record it, download data, etc. -->
-  <div class="row">
+  <!-- Buttons for refreshing coords, recording, loading, etc. -->
+  <div class="buttons-container">
     <button id="refreshBtn">Refresh Coordinates</button>
     <button id="recordBtn">Record</button>
     <button id="downloadBtn">Download Data</button>
@@ -87,40 +136,37 @@
 
   <!-- Input for location name -->
   <div class="row">
-    <label class="label" for="locName">Location Name:</label>
-    <input type="text" id="locName" placeholder="e.g. Truck #1" />
+    <input type="text" id="locName" placeholder="Location Name (e.g. Truck #1)" />
   </div>
 
-  <!-- Status messages -->
   <div id="message"></div>
 
-  <hr/>
-
-  <!-- Text area to see everything we've recorded -->
+  <!-- Text area displaying recorded points -->
   <textarea id="dataTextArea" readonly></textarea>
 
   <script>
     let currentLat = null;
     let currentLon = null;
 
-    let recordedPoints = []; // in-memory store
+    // In-memory store of recorded points
+    let recordedPoints = [];
 
-    const latEl = document.getElementById('lat');
-    const lonEl = document.getElementById('lon');
-    const locNameInput = document.getElementById('locName');
-    const messageEl = document.getElementById('message');
-    const dataTextArea = document.getElementById('dataTextArea');
+    const latEl         = document.getElementById('lat');
+    const lonEl         = document.getElementById('lon');
+    const locNameInput  = document.getElementById('locName');
+    const messageEl     = document.getElementById('message');
+    const dataTextArea  = document.getElementById('dataTextArea');
 
-    const refreshBtn = document.getElementById('refreshBtn');
-    const recordBtn = document.getElementById('recordBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const loadBtn = document.getElementById('loadBtn');
+    const refreshBtn    = document.getElementById('refreshBtn');
+    const recordBtn     = document.getElementById('recordBtn');
+    const downloadBtn   = document.getElementById('downloadBtn');
+    const loadBtn       = document.getElementById('loadBtn');
 
-    // --- Refresh Coordinates (on-demand) ---
+    // --- Refresh Coordinates on demand ---
     refreshBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (!('geolocation' in navigator)) {
-        messageEl.innerHTML = '<p class="error">Geolocation not supported in this browser.</p>';
+        messageEl.innerHTML = '<p class="error">Geolocation not supported.</p>';
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -133,22 +179,21 @@
         },
         (err) => {
           messageEl.innerHTML = `<p class="error">Error getting location: ${err.message}</p>`;
-          console.error("Geolocation error:", err);
         },
         { enableHighAccuracy: true }
       );
     });
 
-    // --- Record the currently displayed coords + name ---
+    // --- Record the displayed coords + name ---
     recordBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (currentLat === null || currentLon === null) {
-        messageEl.innerHTML = '<p class="error">Please Refresh Coordinates before recording.</p>';
+        messageEl.innerHTML = '<p class="error">Please refresh coordinates before recording.</p>';
         return;
       }
       const nameVal = locNameInput.value.trim();
       if (!nameVal) {
-        messageEl.innerHTML = '<p class="error">Please enter a location name.</p>';
+        messageEl.innerHTML = '<p class="error">Enter a location name.</p>';
         return;
       }
 
@@ -161,36 +206,32 @@
       };
       recordedPoints.push(entry);
 
-      // Save to localStorage in case we refresh the page
+      // Save to localStorage
       localStorage.setItem('savedCoordinates', JSON.stringify(recordedPoints));
 
-      // Confirm to the user
-      messageEl.innerHTML = `<p class="status">Recorded "${nameVal}" @ ${currentLat.toFixed(5)}, ${currentLon.toFixed(5)}</p>`;
+      // Confirmation
+      messageEl.innerHTML = `<p class="status">Recorded "${nameVal}" at ${currentLat.toFixed(5)}, ${currentLon.toFixed(5)}</p>`;
       updateDataTextArea();
     });
 
-    // --- Download the recordedPoints as a .txt file ---
+    // --- Download recordedPoints as .txt ---
     downloadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (recordedPoints.length === 0) {
-        messageEl.innerHTML = '<p class="error">No data to download yet.</p>';
+        messageEl.innerHTML = '<p class="error">No data to download.</p>';
         return;
       }
-
-      // Convert the array to CSV-like text
       let fileContent = "Location Name,Latitude,Longitude,Timestamp\n";
       recordedPoints.forEach(pt => {
         fileContent += `"${pt.name}",${pt.latitude},${pt.longitude},${pt.timestamp}\n`;
       });
 
-      // Create a Blob from the text
       const blob = new Blob([fileContent], { type: 'text/plain' });
       const blobUrl = URL.createObjectURL(blob);
 
-      // Create a temporary link to trigger the download
       const tempLink = document.createElement('a');
       tempLink.href = blobUrl;
-      tempLink.download = 'coordinates.txt'; // or .csv if you prefer
+      tempLink.download = 'coordinates.txt';
       document.body.appendChild(tempLink);
       tempLink.click();
       document.body.removeChild(tempLink);
@@ -198,39 +239,30 @@
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     });
 
-    // --- Load from localStorage if exists ---
+    // --- Load from localStorage ---
     loadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       const saved = localStorage.getItem('savedCoordinates');
       if (!saved) {
-        messageEl.innerHTML = '<p class="error">No saved coordinates found in localStorage.</p>';
+        messageEl.innerHTML = '<p class="error">No saved coordinates found.</p>';
         return;
       }
       try {
-        recordedPoints = JSON.parse(saved);
-        if (!Array.isArray(recordedPoints)) {
-          recordedPoints = [];
-        }
-        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} records from localStorage.</p>`;
+        recordedPoints = JSON.parse(saved) || [];
+        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} records.</p>`;
         updateDataTextArea();
       } catch (err) {
-        console.error("Error parsing savedCoordinates:", err);
-        messageEl.innerHTML = '<p class="error">Failed to parse saved coordinates.</p>';
+        messageEl.innerHTML = '<p class="error">Error parsing saved data.</p>';
       }
     });
 
-    // Display the entire list in the textarea
     function updateDataTextArea() {
       let text = '';
       recordedPoints.forEach((pt, i) => {
-        text += `[${i+1}] "${pt.name}" => (${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)}) at ${pt.timestamp}\n`;
+        text += `[${i + 1}] "${pt.name}" => (${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)}) at ${pt.timestamp}\n`;
       });
       dataTextArea.value = text;
     }
-
-    // Optional: auto-load if you want to pull data from localStorage immediately
-    // loadBtn.click();
-
   </script>
 </body>
 </html>
