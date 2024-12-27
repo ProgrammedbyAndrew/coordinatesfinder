@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coordinate Recorder (Client-Side)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .coords {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .label {
+      font-weight: bold;
+    }
+    .row {
+      margin: 10px 0;
+    }
+    .row input {
+      padding: 6px;
+      font-size: 1rem;
+      width: 200px;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .status {
+      margin-top: 1rem;
+      color: green;
+    }
+    .error {
+      margin-top: 1rem;
+      color: red;
+    }
+    hr {
+      margin: 20px 0;
+    }
+    #downloadBtn {
+      background-color: #007bff;
+      color: #fff;
+    }
+    #dataTextArea {
+      width: 100%;
+      height: 100px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Coordinate Recorder</h1>
+
+  <!-- Current position display -->
+  <div class="coords">
+    <div>
+      <span class="label">Latitude:</span>
+      <span id="lat">--</span>
+    </div>
+    <div>
+      <span class="label">Longitude:</span>
+      <span id="lon">--</span>
+    </div>
+  </div>
+
+  <!-- Record input -->
+  <div class="row">
+    <label class="label" for="locName">Location Name:</label>
+    <input type="text" id="locName" placeholder="e.g. Truck #1" />
+  </div>
+
+  <button id="recordBtn">Record</button>
+  <button id="downloadBtn">Download Data</button>
+
+  <div id="message"></div>
+
+  <hr/>
+
+  <!-- Optional: Text area to see everything we've recorded so far -->
+  <textarea id="dataTextArea" readonly></textarea>
+
+  <script>
+    let currentLat = null;
+    let currentLon = null;
+
+    const latEl = document.getElementById('lat');
+    const lonEl = document.getElementById('lon');
+    const locNameInput = document.getElementById('locName');
+    const recordBtn = document.getElementById('recordBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const messageEl = document.getElementById('message');
+    const dataTextArea = document.getElementById('dataTextArea');
+
+    // We'll keep an in-memory array of recorded points
+    let recordedPoints = [];
+
+    // Continuously get user coordinates
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          currentLat = pos.coords.latitude;
+          currentLon = pos.coords.longitude;
+          latEl.textContent = currentLat.toFixed(6);
+          lonEl.textContent = currentLon.toFixed(6);
+        },
+        (err) => {
+          messageEl.innerHTML = `<p class="error">Error getting location: ${err.message}</p>`;
+          console.error("Geolocation error:", err);
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      messageEl.innerHTML = '<p class="error">Geolocation not supported.</p>';
+    }
+
+    // When user clicks "Record"
+    recordBtn.addEventListener('click', () => {
+      messageEl.innerHTML = ''; // Clear old message
+
+      if (currentLat === null || currentLon === null) {
+        messageEl.innerHTML = '<p class="error">No GPS fix yet. Please wait.</p>';
+        return;
+      }
+      const nameVal = locNameInput.value.trim();
+      if (!nameVal) {
+        messageEl.innerHTML = '<p class="error">Please enter a location name.</p>';
+        return;
+      }
+
+      // Save to array
+      const dataObj = {
+        name: nameVal,
+        latitude: currentLat,
+        longitude: currentLon,
+        timestamp: new Date().toISOString()
+      };
+      recordedPoints.push(dataObj);
+
+      // Show a confirmation
+      messageEl.innerHTML = `<p class="status">Recorded: ${nameVal} @ (${currentLat.toFixed(5)}, ${currentLon.toFixed(5)})</p>`;
+
+      // Update the text area (optional)
+      updateDataTextArea();
+    });
+
+    // On "Download Data", create a .txt file with all coordinates
+    downloadBtn.addEventListener('click', () => {
+      if (recordedPoints.length === 0) {
+        messageEl.innerHTML = '<p class="error">No data to download yet.</p>';
+        return;
+      }
+
+      // Generate the file content
+      let fileContent = "Location Name,Latitude,Longitude,Timestamp\n";
+      recordedPoints.forEach(pt => {
+        fileContent += `"${pt.name}",${pt.latitude},${pt.longitude},${pt.timestamp}\n`;
+      });
+
+      // Create a Blob from the file content
+      const blob = new Blob([fileContent], { type: 'text/plain' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a temporary <a> to trigger download
+      const tempLink = document.createElement('a');
+      tempLink.href = blobUrl;
+      tempLink.download = 'coordinates.txt'; // or .csv if you prefer
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      document.body.removeChild(tempLink);
+
+      // (Optional) Revoke object URL after some time
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    });
+
+    // Helper: Update the text area with all recorded data
+    function updateDataTextArea() {
+      let text = '';
+      recordedPoints.forEach((pt, i) => {
+        text += `[${i+1}] ${pt.name} => ${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)} at ${pt.timestamp}\n`;
+      });
+      dataTextArea.value = text;
+    }
+  </script>
+</body>
+</html>
