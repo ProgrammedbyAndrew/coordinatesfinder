@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <!-- Ensures mobile devices render content at device width -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Truck Coordinate Recorder (Real-Time)</title>
+  <title>Truck Coordinate Recorder (With Reset)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -65,16 +65,19 @@
 
     /* Different button colors for clarity */
     #refreshBtn {
-      background-color: #28a745;
+      background-color: #28a745; /* Green */
     }
     #recordBtn {
-      background-color: #007bff;
+      background-color: #007bff; /* Blue */
     }
     #downloadBtn {
-      background-color: #17a2b8;
+      background-color: #17a2b8; /* Teal */
     }
     #loadBtn {
-      background-color: #6c757d;
+      background-color: #6c757d; /* Gray */
+    }
+    #resetBtn {
+      background-color: #dc3545; /* Red (Danger) */
     }
 
     #message {
@@ -129,6 +132,7 @@
     <button id="recordBtn">Record</button>
     <button id="downloadBtn">Download Data</button>
     <button id="loadBtn">Load Coordinates</button>
+    <button id="resetBtn">Reset Data</button>
   </div>
 
   <!-- Status messages -->
@@ -139,10 +143,9 @@
 
   <script>
     // === List of trucks in the correct order. ===
-    // The coordinates listed here are placeholders. 
-    // We will overwrite them with real coords as we walk around and record.
+    // The coordinates here are placeholders. You record real ones in the field.
     const trucks = [
-      "The Smoke Factory", 
+      "The Smoke Factory",
       "Dominican Chimi 829",
       "Chiquinquira Latin Food",
       "King Master Grill",
@@ -245,6 +248,7 @@
     const recordBtn     = document.getElementById('recordBtn');
     const downloadBtn   = document.getElementById('downloadBtn');
     const loadBtn       = document.getElementById('loadBtn');
+    const resetBtn      = document.getElementById('resetBtn');
 
     // --- 1) Show the current truck info in a nice format ---
     function updateTruckInfo() {
@@ -328,7 +332,7 @@
         messageEl.innerHTML = '<p class="error">No data to download.</p>';
         return;
       }
-      // Format: Truck #, Name, Lat, Lon
+      // Format: Truck#,Name,Latitude,Longitude
       let fileContent = "Truck#,Name,Latitude,Longitude\n";
       recordedPoints.forEach(rec => {
         fileContent += `${rec.truckNumber},"${rec.name}",${rec.lat},${rec.lon}\n`;
@@ -380,6 +384,29 @@
       }
     });
 
+    // --- 6) Reset Data (clears everything) ---
+    resetBtn.addEventListener('click', () => {
+      messageEl.innerHTML = '';
+      if (!confirm("Are you sure you want to reset all recorded data? This cannot be undone.")) {
+        return; // user canceled
+      }
+      // Clear in-memory data
+      recordedPoints = [];
+      currentIndex = 0;
+      currentLat = null;
+      currentLon = null;
+      latEl.textContent = "--";
+      lonEl.textContent = "--";
+
+      // Clear localStorage
+      localStorage.removeItem('truckCoordinates');
+
+      // Update UI
+      updateTruckInfo();
+      updateDataTextArea();
+      messageEl.innerHTML = '<p class="status">All data has been reset.</p>';
+    });
+
     // Display the entire recordedPoints in the text area
     function updateDataTextArea() {
       let text = '';
@@ -389,9 +416,6 @@
       });
       dataTextArea.value = text;
     }
-
-    // Optional: auto-load data on page load
-    // loadBtn.click();
   </script>
 </body>
 </html>
