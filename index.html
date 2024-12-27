@@ -232,7 +232,6 @@
     let currentIndex = 0;  
 
     // We'll store the actual recorded lat/lons in an array.
-    // Example entries: { truckNumber: 1, name: "The Smoke Factory", lat: 28.1234, lon: -81.5678 }
     let recordedPoints = [];
 
     let currentLat = null;
@@ -281,7 +280,12 @@
         (err) => {
           messageEl.innerHTML = `<p class="error">Error getting location: ${err.message}</p>`;
         },
-        { enableHighAccuracy: true }
+        // Force fresh, high-accuracy data
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 60000
+        }
       );
     });
 
@@ -370,7 +374,6 @@
           }
         }
         // If we've recorded up to #5, that means currentIndex is 5
-        // (0-based => 5). If #80 is done, that means currentIndex=80 => all done.
         currentIndex = maxNumber; 
         if (currentIndex > trucks.length) {
           currentIndex = trucks.length;
