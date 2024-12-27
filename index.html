@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <!-- Ensures mobile devices render content at device width -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coordinate Recorder (No Time)</title>
+  <title>Truck Coordinate Recorder (Real-Time)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -32,6 +32,16 @@
     .label {
       font-weight: bold;
       margin-right: 6px;
+    }
+
+    .truck-info {
+      text-align: center;
+      font-size: 1.2rem;
+      margin: 12px 0;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
     }
 
     .buttons-container {
@@ -67,22 +77,9 @@
       background-color: #6c757d;
     }
 
-    .row {
-      text-align: center;
-      margin-bottom: 12px;
-    }
-    .row input {
-      padding: 12px;
-      font-size: 1rem;
-      width: 80%;
-      max-width: 300px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-
     #message {
       font-size: 1rem;
-      margin: 12px auto 12px auto;
+      margin: 12px auto;
       text-align: center;
       max-width: 400px;
     }
@@ -109,7 +106,7 @@
   </style>
 </head>
 <body>
-  <h1>Coordinate Recorder (No Time)</h1>
+  <h1>Truck Coordinate Recorder</h1>
 
   <!-- Current position display -->
   <div class="coords">
@@ -123,6 +120,9 @@
     </div>
   </div>
 
+  <!-- Display which truck we are currently recording -->
+  <div id="truckInfo" class="truck-info"></div>
+
   <!-- Buttons for refreshing coords, recording, loading, etc. -->
   <div class="buttons-container">
     <button id="refreshBtn">Refresh Coordinates</button>
@@ -131,27 +131,113 @@
     <button id="loadBtn">Load Coordinates</button>
   </div>
 
-  <!-- Input for location name -->
-  <div class="row">
-    <input type="text" id="locName" placeholder="Location Name (e.g. Truck #1)" />
-  </div>
-
+  <!-- Status messages -->
   <div id="message"></div>
 
   <!-- Text area displaying recorded points -->
   <textarea id="dataTextArea" readonly></textarea>
 
   <script>
+    // === List of trucks in the correct order. ===
+    // The coordinates listed here are placeholders. 
+    // We will overwrite them with real coords as we walk around and record.
+    const trucks = [
+      "The Smoke Factory", 
+      "Dominican Chimi 829",
+      "Chiquinquira Latin Food",
+      "King Master Grill",
+      "Alans Burger",
+      "Tacos Gonzalez",
+      "Asere Que Bola",
+      "Bobalicious",
+      "Dominican Chimi 809",
+      "Dame Naqui",
+      "Dulce Sazon",
+      "Tacos Padrisimo",
+      "Chipotes",
+      "Rincon De La Papas #1",
+      "El Pilon De La Chula",
+      "Crabby Land",
+      "Pa Los Chinos",
+      "Al Barill #1",
+      "Carne En Vara",
+      "Chicha Tizana",
+      "Di Marcello",
+      "Pi Caribe",
+      "Pica Fish",
+      "Yakuza Sushi",
+      "Blessed Belly",
+      "La Muralla China",
+      "Wings on Wheels",
+      "Chichos Fushion Cuisine",
+      "Di Aromas",
+      "Javi Mini Donuts",
+      "Fruit Shakes",
+      "Super Grill",
+      "Chinchorrear Es La Que Hay",
+      "La Fiebre Del Sabor Criollo",
+      "Pizza Mania",
+      "Sabor Latino",
+      "Brazillian Grill",
+      "Mr Cuajoymas",
+      "La Coolmena",
+      "El Rincon De Las Papas #2",
+      "El Sospechoso",
+      "Mr.Juice",
+      "Mr.Pizza",
+      "Chilangos",
+      "Mango Viche - 1",
+      "Avila Grill",
+      "Nonna Mia Street Food",
+      "Mango Viche - 2",
+      "Chingu Korean Food",
+      "Global Street Kitchen",
+      "El Chilling Mobile",
+      "Frappe Lovers",
+      "Puro Dulzor",
+      "Puro Dulzor Candy",
+      "Ternerita Burger",
+      "Que Parchef",
+      "Javi Funnel Cakes",
+      "Beirut Bistro",
+      "Leti Arepa",
+      "Los Cuates",
+      "Happy Churros",
+      "Bien Taypa",
+      "Los Cipotes",
+      "Heladas Rico Tropical",
+      "Sushi Boriqua",
+      "Antojitos Del Caribe",
+      "Jam Trini Caribbean Cuisine",
+      "Matias Argentinian Cuisine",
+      "Taste of Haiti",
+      "Mac n Ribs",
+      "Los Juanos",
+      "El Munchi Loco",
+      "The Sweet Corner",
+      "Popcorn Patico",
+      "Al Barill #2",
+      "Los Cipotes Snow Cone",
+      "Caracas Dog",
+      "The Godfather",
+      "La Pocion Magica",
+      "Tarbouch Hookah"
+    ];
+
+    // We'll keep track of the current index (0-based).
+    // Each time you "record," we move to the next truck.
+    let currentIndex = 0;  
+
+    // We'll store the actual recorded lat/lons in an array.
+    // Example entries: { truckNumber: 1, name: "The Smoke Factory", lat: 28.1234, lon: -81.5678 }
+    let recordedPoints = [];
+
     let currentLat = null;
     let currentLon = null;
 
-    // In-memory store of recorded points
-    // Each item is { name: string, latitude: number, longitude: number }
-    let recordedPoints = [];
-
     const latEl         = document.getElementById('lat');
     const lonEl         = document.getElementById('lon');
-    const locNameInput  = document.getElementById('locName');
+    const truckInfoEl   = document.getElementById('truckInfo');
     const messageEl     = document.getElementById('message');
     const dataTextArea  = document.getElementById('dataTextArea');
 
@@ -160,11 +246,24 @@
     const downloadBtn   = document.getElementById('downloadBtn');
     const loadBtn       = document.getElementById('loadBtn');
 
-    // --- 1) Refresh Coordinates on demand ---
+    // --- 1) Show the current truck info in a nice format ---
+    function updateTruckInfo() {
+      if (currentIndex >= trucks.length) {
+        truckInfoEl.textContent = "All trucks recorded!";
+      } else {
+        const truckNumber = currentIndex + 1;  // 1-based
+        const totalCount  = trucks.length;
+        const truckName   = trucks[currentIndex];
+        truckInfoEl.textContent = `Truck #${truckNumber} / ${totalCount}: ${truckName}`;
+      }
+    }
+    updateTruckInfo(); // on page load
+
+    // --- 2) Refresh coordinates on demand ---
     refreshBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (!('geolocation' in navigator)) {
-        messageEl.innerHTML = '<p class="error">Geolocation not supported.</p>';
+        messageEl.innerHTML = '<p class="error">Geolocation not supported in this browser.</p>';
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -182,47 +281,57 @@
       );
     });
 
-    // --- 2) Record the displayed coords + name (no timestamp) ---
+    // --- 3) Record coords for the current truck ---
     recordBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
+      // If we already recorded all trucks, do nothing
+      if (currentIndex >= trucks.length) {
+        messageEl.innerHTML = '<p class="error">All trucks have been recorded.</p>';
+        return;
+      }
+
       if (currentLat === null || currentLon === null) {
         messageEl.innerHTML = '<p class="error">Please refresh coordinates before recording.</p>';
         return;
       }
-      const nameVal = locNameInput.value.trim();
-      if (!nameVal) {
-        messageEl.innerHTML = '<p class="error">Enter a location name.</p>';
-        return;
-      }
 
-      // Build an object for the coordinate
-      const entry = {
-        name: nameVal,
-        latitude: currentLat,
-        longitude: currentLon
+      const truckNumber = currentIndex + 1; 
+      const truckName   = trucks[currentIndex];
+
+      // Save it
+      let entry = {
+        truckNumber: truckNumber,
+        name: truckName,
+        lat: currentLat,
+        lon: currentLon
       };
       recordedPoints.push(entry);
 
-      // Save to localStorage (stringify the entire array)
-      localStorage.setItem('savedCoordinates', JSON.stringify(recordedPoints));
+      // Confirm
+      messageEl.innerHTML = `<p class="status">
+        Recorded Truck #${truckNumber} (${truckName}) at (${currentLat.toFixed(5)}, ${currentLon.toFixed(5)})
+      </p>`;
 
-      // Confirmation
-      messageEl.innerHTML = `<p class="status">Recorded "${nameVal}" at ${currentLat.toFixed(5)}, ${currentLon.toFixed(5)}</p>`;
+      // Save the entire array to localStorage (as JSON)
+      localStorage.setItem('truckCoordinates', JSON.stringify(recordedPoints));
+
+      // Move on to next truck
+      currentIndex++;
+      updateTruckInfo();
       updateDataTextArea();
     });
 
-    // --- 3) Download recordedPoints as .txt (no timestamp) ---
+    // --- 4) Download the entire data as .txt (CSV-like) ---
     downloadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
       if (recordedPoints.length === 0) {
         messageEl.innerHTML = '<p class="error">No data to download.</p>';
         return;
       }
-      // Convert array to CSV-like text
-      // We'll do "Location Name,Latitude,Longitude"
-      let fileContent = "Location Name,Latitude,Longitude\n";
-      recordedPoints.forEach(pt => {
-        fileContent += `"${pt.name}",${pt.latitude},${pt.longitude}\n`;
+      // Format: Truck #, Name, Lat, Lon
+      let fileContent = "Truck#,Name,Latitude,Longitude\n";
+      recordedPoints.forEach(rec => {
+        fileContent += `${rec.truckNumber},"${rec.name}",${rec.lat},${rec.lon}\n`;
       });
 
       const blob = new Blob([fileContent], { type: 'text/plain' });
@@ -230,7 +339,7 @@
 
       const tempLink = document.createElement('a');
       tempLink.href = blobUrl;
-      tempLink.download = 'coordinates.txt';
+      tempLink.download = 'truck_coordinates.txt';
       document.body.appendChild(tempLink);
       tempLink.click();
       document.body.removeChild(tempLink);
@@ -238,31 +347,51 @@
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     });
 
-    // --- 4) Load from localStorage (if previously saved) ---
+    // --- 5) Load from localStorage (restores progress) ---
     loadBtn.addEventListener('click', () => {
       messageEl.innerHTML = '';
-      const saved = localStorage.getItem('savedCoordinates');
+      const saved = localStorage.getItem('truckCoordinates');
       if (!saved) {
-        messageEl.innerHTML = '<p class="error">No saved coordinates found.</p>';
+        messageEl.innerHTML = '<p class="error">No saved data found in localStorage.</p>';
         return;
       }
       try {
         recordedPoints = JSON.parse(saved) || [];
-        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} record(s).</p>`;
+
+        // Figure out the highest "truckNumber" we have
+        let maxNumber = 0;
+        for (const r of recordedPoints) {
+          if (r.truckNumber > maxNumber) {
+            maxNumber = r.truckNumber;
+          }
+        }
+        // If we've recorded up to #5, that means currentIndex is 5
+        // (0-based => 5). If #80 is done, that means currentIndex=80 => all done.
+        currentIndex = maxNumber; 
+        if (currentIndex > trucks.length) {
+          currentIndex = trucks.length;
+        }
+
+        updateTruckInfo();
         updateDataTextArea();
+        messageEl.innerHTML = `<p class="status">Loaded ${recordedPoints.length} record(s). Continuing at truck #${currentIndex+1}.</p>`;
       } catch (err) {
         messageEl.innerHTML = '<p class="error">Error parsing saved data.</p>';
       }
     });
 
-    // Show the recordedPoints in the text area
+    // Display the entire recordedPoints in the text area
     function updateDataTextArea() {
       let text = '';
       recordedPoints.forEach((pt, i) => {
-        text += `[${i + 1}] "${pt.name}" => (${pt.latitude.toFixed(5)}, ${pt.longitude.toFixed(5)})\n`;
+        text += `[${i + 1}] Truck #${pt.truckNumber} "${pt.name}" => `
+             + `(${pt.lat.toFixed(5)}, ${pt.lon.toFixed(5)})\n`;
       });
       dataTextArea.value = text;
     }
+
+    // Optional: auto-load data on page load
+    // loadBtn.click();
   </script>
 </body>
 </html>
